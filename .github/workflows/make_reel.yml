@@ -1,0 +1,114 @@
+name: Make Lyric Reel
+
+on:
+  workflow_dispatch:
+    inputs:
+      mp3_file:
+        description: 'MP3 file to process (upload as artifact first, or place in repo)'
+        required: false
+        type: string
+      title:
+        description: 'Reel title'
+        required: false
+        default: 'खत'
+        type: string
+      artist:
+        description: 'Artist name'
+        required: false
+        default: 'Navjot Ahuja'
+        type: string
+      handle:
+        description: 'Social handle'
+        required: false
+        default: '@mody.verse'
+        type: string
+      duration:
+        description: 'Clip duration (seconds)'
+        required: false
+        default: '30'
+        type: string
+      line:
+        description: 'Starting lyric line (0-indexed)'
+        required: false
+        default: '0'
+        type: string
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg libsndfile1
+
+      - name: Install Node.js (for Playwright)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+          pip install demucs soundfile uroman playwright imageio-ffmpeg numpy regex
+
+      - name: Install Playwright Chromium
+        run: |
+          python -m playwright install chromium
+          python -m playwright install-deps chromium
+
+      - name: Prepare MP3 file
+        id: mp3
+        run: |
+          # Check if MP3 exists in repo
+          if [ -f "khat navjot ahuja 128kbps.mp3" ]; then
+            echo "MP3 found in repo"
+            echo "mp3_path=khat navjot ahuja 128kbps.mp3" >> $GITHUB_OUTPUT
+          elif [ -n "${{ inputs.mp3_file }}" ] && [ -f "${{ inputs.mp3_file }}" ]; then
+            echo "Using provided MP3: ${{ inputs.mp3_file }}"
+            echo "mp3_path=${{ inputs.mp3_file }}" >> $GITHUB_OUTPUT
+          else
+            echo "ERROR: No MP3 file found. Add 'khat navjot ahuja 128kbps.mp3' to repo root, or upload as artifact and specify path in workflow_dispatch input."
+            exit 1
+          fi
+
+      - name: Run make_reel.py
+        env:
+          MP3_PATH: ${{ steps.mp3.outputs.mp3_path }}
+        run: |
+          python make_reel.py \
+            --mp3 "$MP3_PATH" \
+            --title "${{ inputs.title }}" \
+            --artist "${{ inputs.artist }}" \
+            --handle "${{ inputs.handle }}" \
+            --duration ${{ inputs.duration }} \
+            --line ${{ inputs.line }}
+
+      - name: Upload reel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lyric-reel
+          path: khat_sketch_reel.mp4
+          retention-days: 7
+
+      - name: Show output info
+        run: |
+          echo "✅ Reel generated successfully!"
+          echo "📥 Download from Actions artifacts: lyric-reel"
+          ls -lh khat_sketch_reel.mp4
