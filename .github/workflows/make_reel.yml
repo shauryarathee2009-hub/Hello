@@ -101,7 +101,7 @@ jobs:
             --line ${{ inputs.line }}
 
       - name: Upload reel artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lyric-reel
           path: khat_sketch_reel.mp4
