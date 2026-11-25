@@ -76,16 +76,29 @@ jobs:
       - name: Prepare MP3 file
         id: mp3
         run: |
-          # Check if MP3 exists in repo
+          # Check if MP3 exists in repo (quote path to handle spaces)
           if [ -f "khat navjot ahuja 128kbps.mp3" ]; then
             echo "MP3 found in repo"
             echo "mp3_path=khat navjot ahuja 128kbps.mp3" >> $GITHUB_OUTPUT
-          elif [ -n "${{ inputs.mp3_file }}" ] && [ -f "${{ inputs.mp3_file }}" ]; then
-            echo "Using provided MP3: ${{ inputs.mp3_file }}"
-            echo "mp3_path=${{ inputs.mp3_file }}" >> $GITHUB_OUTPUT
+          elif [ -n "${{ inputs.mp3_file }}" ]; then
+            # Quote the input path too
+            if [ -f "${{ inputs.mp3_file }}" ]; then
+              echo "Using provided MP3: ${{ inputs.mp3_file }}"
+              echo "mp3_path=${{ inputs.mp3_file }}" >> $GITHUB_OUTPUT
+            else
+              echo "ERROR: Provided MP3 not found: ${{ inputs.mp3_file }}"
+              exit 1
+            fi
           else
-            echo "ERROR: No MP3 file found. Add 'khat navjot ahuja 128kbps.mp3' to repo root, or upload as artifact and specify path in workflow_dispatch input."
-            exit 1
+            # Fallback: use glob to find any .mp3
+            MP3_CANDIDATES=$(find . -maxdepth 1 -name "*.mp3" -type f | head -1)
+            if [ -n "$MP3_CANDIDATES" ]; then
+              echo "Found MP3 via glob: $MP3_CANDIDATES"
+              echo "mp3_path=$MP3_CANDIDATES" >> $GITHUB_OUTPUT
+            else
+              echo "ERROR: No MP3 file found. Add an .mp3 to repo root, or upload as artifact and specify path in workflow_dispatch input."
+              exit 1
+            fi
           fi
 
       - name: Run make_reel.py
