@@ -48,3 +48,11 @@ jobs:
 
       - name: Build workspaces
         run: npm run build
+       - name: Upload generated reel
+        uses: actions/upload-artifact@v4
+        with:
+          name: lyric-reel
+          path: path/to/your/output/folder/ # Replace with your actual file or folder path
+          if-no-files-found: error # Optional: fails the step if the file wasn't created
+
+        
